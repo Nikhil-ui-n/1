@@ -6,17 +6,69 @@ import altair as alt
 # PAGE CONFIG
 # =================================================
 st.set_page_config(
-    page_title="Social Media Analytics Pro – Fraud Intelligence",
+    page_title="Social Media Analytics Pro",
     page_icon="🚀",
     layout="wide"
 )
 
 # =================================================
-# LOAD DATA (USE SAME DATABASE)
+# ADVANCED CSS + ANIMATIONS
+# =================================================
+st.markdown("""
+<style>
+.main {
+    background: linear-gradient(to right, #141E30, #243B55);
+    animation: fadeIn 1.2s ease-in;
+}
+@keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
+
+.gradient-text {
+    background: linear-gradient(90deg,#00c6ff,#0072ff,#7f00ff,#e100ff);
+    background-size: 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientMove 6s infinite linear;
+}
+@keyframes gradientMove {
+    0% {background-position:0%;}
+    100% {background-position:300%;}
+}
+
+.metric-card {
+    padding: 20px;
+    border-radius: 18px;
+    color: white;
+    text-align: center;
+    box-shadow: 0px 6px 25px rgba(0,0,0,0.4);
+    animation: slideUp 0.8s ease forwards;
+    transition: all 0.3s ease;
+}
+.metric-card:hover {
+    transform: translateY(-8px) scale(1.03);
+}
+.blue {background: linear-gradient(135deg,#396afc,#2948ff);}
+.green {background: linear-gradient(135deg,#11998e,#38ef7d);}
+.orange {background: linear-gradient(135deg,#f7971e,#ffd200);}
+.red {background: linear-gradient(135deg,#ff416c,#ff4b2b);}
+.purple {background: linear-gradient(135deg,#667eea,#764ba2);}
+
+.section {
+    animation: sectionFade 1s ease forwards;
+    margin-top: 30px;
+}
+@keyframes sectionFade {
+    from {opacity:0; transform:translateY(50px);}
+    to {opacity:1; transform:translateY(0);}
+}
+</style>
+""", unsafe_allow_html=True)
+
+# =================================================
+# LOAD DATA
 # =================================================
 @st.cache_data
 def load_data():
-    df = pd.read_csv("social_media_engagement_enhanced (1).csv")
+    df = pd.read_csv("social_media_engagement.csv")
     df["date"] = pd.to_datetime(df["date"])
     return df
 
@@ -31,140 +83,151 @@ df["day_of_week"] = df["date"].dt.day_name()
 # =================================================
 # SIDEBAR FILTERS
 # =================================================
-st.sidebar.header("🎛️ Dashboard Controls")
+st.sidebar.markdown("## 🎛️ Dashboard Controls")
 
 platform_filter = st.sidebar.multiselect(
-    "Platform", df["platform"].unique(), df["platform"].unique()
+    "📱 Platform", df["platform"].unique(), df["platform"].unique()
+)
+content_filter = st.sidebar.multiselect(
+    "🖼️ Content Type", df["content_type"].unique(), df["content_type"].unique()
 )
 year_filter = st.sidebar.multiselect(
-    "Year", df["year"].unique(), df["year"].unique()
+    "📅 Year", df["year"].unique(), df["year"].unique()
 )
 
 filtered_df = df[
     (df["platform"].isin(platform_filter)) &
+    (df["content_type"].isin(content_filter)) &
     (df["year"].isin(year_filter))
 ]
 
 # =================================================
-# HEADER
-# =================================================
-st.title("🚨 Fraud Intelligence – Social Media Analytics")
-st.markdown(
-    "Detecting **suspicious marketing activity** using abnormal engagement & ROI patterns"
-)
-
-# =================================================
-# FRAUD LOGIC (CORE)
+# FRAUD LOGIC
 # =================================================
 high_engagement_threshold = filtered_df["engagement"].quantile(0.90)
-
 filtered_df["suspicious"] = (
     (filtered_df["engagement"] > high_engagement_threshold) &
     (filtered_df["roi"] <= 0)
 )
-
 fraud_df = filtered_df[filtered_df["suspicious"]]
 
 # =================================================
-# 1️⃣ FRAUD RISK SCORE (LOW / MEDIUM / HIGH)
+# HEADER
 # =================================================
-st.header("1️⃣ Fraud Risk Score")
-
-total_posts = len(filtered_df)
-fraud_posts = len(fraud_df)
-
-fraud_ratio = (fraud_posts / total_posts) * 100 if total_posts > 0 else 0
-
-if fraud_ratio < 5:
-    risk_level = "LOW 🟢"
-elif fraud_ratio < 15:
-    risk_level = "MEDIUM 🟠"
-else:
-    risk_level = "HIGH 🔴"
-
-c1, c2, c3 = st.columns(3)
-c1.metric("Total Posts", total_posts)
-c2.metric("Suspicious Posts", fraud_posts)
-c3.metric("Fraud Risk Level", risk_level)
+st.markdown("""
+<h1 class="gradient-text" style="text-align:center;">
+🚀 Social Media Analytics Pro Dashboard
+</h1>
+<p style="text-align:center;color:#dcdcdc;font-size:18px;">
+Engagement • Content • Campaign ROI • Revenue • Fraud Intelligence
+</p>
+""", unsafe_allow_html=True)
 
 # =================================================
-# 2️⃣ FRAUD HEATMAP (DAY × HOUR)
+# KPI CARDS
 # =================================================
-st.markdown("---")
-st.header("2️⃣ Fraud Heatmap (Day vs Hour)")
+c1, c2, c3, c4, c5 = st.columns(5)
 
-fraud_heatmap = (
-    fraud_df
-    .groupby(["day_of_week", "post_hour"])
-    .size()
-    .reset_index(name="fraud_count")
+c1.markdown(f"<div class='metric-card blue'><h3>Total Engagement</h3><h2>{int(filtered_df['engagement'].sum())}</h2></div>", unsafe_allow_html=True)
+c2.markdown(f"<div class='metric-card green'><h3>Avg Engagement Rate</h3><h2>{round(filtered_df['engagement_rate'].mean(),2)}%</h2></div>", unsafe_allow_html=True)
+c3.markdown(f"<div class='metric-card orange'><h3>Ad Spend</h3><h2>₹ {int(filtered_df['ad_spend'].sum())}</h2></div>", unsafe_allow_html=True)
+c4.markdown(f"<div class='metric-card red'><h3>Revenue</h3><h2>₹ {int(filtered_df['revenue_generated'].sum())}</h2></div>", unsafe_allow_html=True)
+c5.markdown(f"<div class='metric-card purple'><h3>Avg ROI</h3><h2>{round(filtered_df['roi'].mean(),2)}</h2></div>", unsafe_allow_html=True)
+
+# =================================================
+# TABS
+# =================================================
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    ["📱 Engagement", "🖼️ Content", "💰 Campaign ROI", "⏰ Best Time", "🚨 Fraud Detection"]
 )
 
-if fraud_heatmap.empty:
-    st.success("✅ No suspicious marketing patterns detected")
-else:
-    heatmap = alt.Chart(fraud_heatmap).mark_rect().encode(
-        x=alt.X("post_hour:O", title="Posting Hour"),
-        y=alt.Y(
-            "day_of_week:O",
-            sort=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
-            title="Day of Week"
-        ),
-        color=alt.Color(
-            "fraud_count:Q",
-            scale=alt.Scale(scheme="reds"),
-            title="Fraud Intensity"
-        ),
-        tooltip=["day_of_week", "post_hour", "fraud_count"]
-    ).properties(
-        height=350
-    )
+# ---------------- TAB 1 ----------------
+with tab1:
+    st.markdown('<div class="section">', unsafe_allow_html=True)
+    plat = filtered_df.groupby("platform")["engagement_rate"].mean().reset_index()
+    st.bar_chart(plat, x="platform", y="engagement_rate")
+    st.success(f"🏆 Best Platform: **{plat.loc[plat['engagement_rate'].idxmax(),'platform']}**")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.altair_chart(heatmap, use_container_width=True)
+# ---------------- TAB 2 ----------------
+with tab2:
+    st.markdown('<div class="section">', unsafe_allow_html=True)
+    cont = filtered_df.groupby("content_type")["engagement"].mean().reset_index()
+    st.bar_chart(cont, x="content_type", y="engagement")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# =================================================
-# 3️⃣ AUTO FRAUD INSIGHTS & RECOMMENDATIONS
-# =================================================
-st.markdown("---")
-st.header("3️⃣ Fraud Insights & Recommendations")
+# ---------------- TAB 3 ----------------
+with tab3:
+    st.markdown('<div class="section">', unsafe_allow_html=True)
+    camp = filtered_df[filtered_df["campaign_name"].notna()]
+    camp_sum = camp.groupby("campaign_name")[["ad_spend","revenue_generated","roi"]].mean().reset_index()
+    st.dataframe(camp_sum)
+    st.bar_chart(camp_sum, x="campaign_name", y="roi")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-if fraud_df.empty:
-    st.success("🟢 Marketing activity looks healthy with no abnormal patterns.")
-else:
-    peak_hour = (
-        fraud_df.groupby("post_hour").size().idxmax()
-        if not fraud_df.empty else "N/A"
-    )
+# ---------------- TAB 4 ----------------
+with tab4:
+    st.markdown('<div class="section">', unsafe_allow_html=True)
+    hour = filtered_df.groupby("post_hour")["engagement"].mean().reset_index()
+    st.line_chart(hour, x="post_hour", y="engagement")
+    best_hour = hour.loc[hour["engagement"].idxmax(),"post_hour"]
+    st.success(f"🔥 Best Posting Time: **{best_hour}:00 hrs**")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    peak_day = (
-        fraud_df.groupby("day_of_week").size().idxmax()
-        if not fraud_df.empty else "N/A"
-    )
+# ---------------- TAB 5 : FRAUD ----------------
+with tab5:
+    st.markdown('<div class="section">', unsafe_allow_html=True)
 
-    peak_platform = (
-        fraud_df.groupby("platform").size().idxmax()
-        if not fraud_df.empty else "N/A"
-    )
+    total_posts = len(filtered_df)
+    fraud_posts = len(fraud_df)
+    fraud_prob = (fraud_posts / total_posts) * 100 if total_posts else 0
 
-    st.warning("⚠️ Potential Fraud Patterns Detected")
+    if fraud_prob < 5:
+        risk = "LOW 🟢"
+    elif fraud_prob < 15:
+        risk = "MEDIUM 🟠"
+    else:
+        risk = "HIGH 🔴"
 
-    st.markdown(f"""
-### 🔍 Key Observations
-- Highest suspicious activity observed around **{peak_hour}:00 hrs**
-- Riskier days: **{peak_day}**
-- Platform with more anomalies: **{peak_platform}**
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total Posts", total_posts)
+    c2.metric("Suspicious Posts", fraud_posts)
+    c3.metric("Fraud Risk", risk)
 
+    st.markdown("### 🔥 Fraud Heatmap (Day × Hour)")
+    heat_df = fraud_df.groupby(["day_of_week","post_hour"]).size().reset_index(name="count")
+
+    if not heat_df.empty:
+        heat = alt.Chart(heat_df).mark_rect().encode(
+            x="post_hour:O",
+            y=alt.Y("day_of_week:O", sort=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]),
+            color=alt.Color("count:Q", scale=alt.Scale(scheme="reds")),
+            tooltip=["day_of_week","post_hour","count"]
+        )
+        st.altair_chart(heat, use_container_width=True)
+
+        safe_df = filtered_df[~filtered_df["suspicious"]].groupby(["day_of_week","post_hour"]).size().reset_index(name="safe")
+        safest = safe_df.loc[safe_df["safe"].idxmax()]
+        st.success(f"🛡️ Safest Time to Post: **{safest['day_of_week']} at {safest['post_hour']}:00 hrs**")
+
+        st.warning("""
 ### 🧠 Recommendations
-- Avoid aggressive ad spending during **{peak_day} at {peak_hour}:00 hrs**
-- Review engagement sources for **{peak_platform}**
-- Validate traffic quality before scaling campaigns
-- Implement stricter monitoring for high-engagement / low-ROI posts
+• Avoid posting during high-risk hours  
+• Audit high-engagement but low-ROI posts  
+• Focus campaigns during safe posting windows  
+• Monitor platforms with repeated anomalies
 """)
+    else:
+        st.success("✅ No suspicious marketing activity detected")
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # =================================================
 # FOOTER
 # =================================================
-st.markdown("---")
-st.markdown(
-    "📌 **Fraud Intelligence Module – Project 8 (Social Media Engagement Analytics)**"
-)
+st.markdown("""
+<hr>
+<p style="text-align:center;color:#bbbbbb;">
+Project 8 • Social Media Engagement Analytics • Fraud Intelligence Module
+</p>
+""", unsafe_allow_html=True)
