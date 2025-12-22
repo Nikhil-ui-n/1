@@ -136,11 +136,40 @@ with tab3:
 # TAB 4: BEST POSTING TIME
 # =================================================
 with tab4:
+# ---------------- TAB 4 ----------------
+with tab4:
     st.subheader("⏰ Optimal Posting Time")
-    hourly = filtered_df.groupby("post_hour")["engagement"].mean().reset_index()
-    st.line_chart(hourly, x="post_hour", y="engagement")
-    best_hour = hourly.loc[hourly["engagement"].idxmax(),"post_hour"]
-    st.success(f"🔥 Best Time to Post: **{best_hour}:00 hrs**")
+
+    # FIX: use engagement RATE instead of raw engagement
+    hourly = (
+        filtered_df
+        .groupby("post_hour")
+        .agg(
+            avg_engagement=("engagement", "mean"),
+            avg_engagement_rate=("engagement_rate", "mean"),
+            posts=("post_hour", "count")
+        )
+        .reset_index()
+    )
+
+    # Line chart using engagement RATE (stable & readable)
+    st.line_chart(
+        hourly,
+        x="post_hour",
+        y="avg_engagement_rate"
+    )
+
+    # Best hour based on engagement rate
+    best_hour = hourly.loc[
+        hourly["avg_engagement_rate"].idxmax(), "post_hour"
+    ]
+
+    st.success(f"🔥 Best Posting Time: **{best_hour}:00 hrs**")
+
+    # Extra insight (optional but powerful)
+    st.caption(
+        "📌 Engagement rate is used instead of raw engagement to avoid bias from uneven posting frequency."
+    )
 
 # =================================================
 # TAB 5: VIDEO STRATEGY
