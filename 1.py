@@ -11,14 +11,11 @@ st.set_page_config(
 )
 
 # =================================================
-# CUSTOM CSS (COLORFUL)
+# CUSTOM CSS (COLORFUL UI)
 # =================================================
 st.markdown("""
 <style>
-body {
-    background: linear-gradient(to right, #141E30, #243B55);
-}
-.main {
+body, .main {
     background: linear-gradient(to right, #141E30, #243B55);
 }
 h1, h2, h3 {
@@ -32,18 +29,10 @@ h1, h2, h3 {
     text-align: center;
     box-shadow: 0px 4px 20px rgba(0,0,0,0.3);
 }
-.metric-card.green {
-    background: linear-gradient(135deg, #11998e, #38ef7d);
-}
-.metric-card.orange {
-    background: linear-gradient(135deg, #f7971e, #ffd200);
-}
-.metric-card.red {
-    background: linear-gradient(135deg, #ff416c, #ff4b2b);
-}
-.metric-card.blue {
-    background: linear-gradient(135deg, #396afc, #2948ff);
-}
+.metric-card.green { background: linear-gradient(135deg,#11998e,#38ef7d); }
+.metric-card.orange { background: linear-gradient(135deg,#f7971e,#ffd200); }
+.metric-card.red { background: linear-gradient(135deg,#ff416c,#ff4b2b); }
+.metric-card.blue { background: linear-gradient(135deg,#396afc,#2948ff); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -68,15 +57,9 @@ df = load_data()
 # =================================================
 st.sidebar.markdown("## 🎛️ Dashboard Controls")
 
-platform_filter = st.sidebar.multiselect(
-    "📱 Platform", df["platform"].unique(), df["platform"].unique()
-)
-content_filter = st.sidebar.multiselect(
-    "🖼️ Content Type", df["content_type"].unique(), df["content_type"].unique()
-)
-year_filter = st.sidebar.multiselect(
-    "📅 Year", df["year"].unique(), df["year"].unique()
-)
+platform_filter = st.sidebar.multiselect("📱 Platform", df["platform"].unique(), df["platform"].unique())
+content_filter = st.sidebar.multiselect("🖼️ Content Type", df["content_type"].unique(), df["content_type"].unique())
+year_filter = st.sidebar.multiselect("📅 Year", df["year"].unique(), df["year"].unique())
 
 filtered_df = df[
     (df["platform"].isin(platform_filter)) &
@@ -90,7 +73,7 @@ filtered_df = df[
 st.markdown("""
 <h1 style='text-align:center;'>🚀 Social Media Analytics Pro Dashboard</h1>
 <p style='text-align:center;color:#dcdcdc;font-size:18px;'>
-Analytics • ROI • Best Time • Strategy • Detection
+Engagement • ROI • Strategy • Detection • Growth
 </p>
 """, unsafe_allow_html=True)
 
@@ -110,66 +93,98 @@ st.markdown("---")
 # =================================================
 # TABS
 # =================================================
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
-    [
-        "📱 Engagement",
-        "🖼️ Content",
-        "💰 Campaign ROI",
-        "⏰ Best Time",
-        "🎥 Video Strategy",
-        "🚀 Smart Promotion Strategy"
-    ]
-)
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "📱 Engagement",
+    "🖼️ Content",
+    "💰 Campaign ROI",
+    "⏰ Best Time",
+    "🎥 Video Strategy",
+    "🚀 Smart Promotion Detection"
+])
 
-# ---------------- TAB 6: SMART PROMOTION (DETECTION) ----------------
+# =================================================
+# TAB 1: ENGAGEMENT
+# =================================================
+with tab1:
+    platform_eng = filtered_df.groupby("platform")["engagement_rate"].mean().reset_index()
+    st.bar_chart(platform_eng, x="platform", y="engagement_rate")
+
+# =================================================
+# TAB 2: CONTENT PERFORMANCE
+# =================================================
+with tab2:
+    content_perf = filtered_df.groupby("content_type")[["likes","comments","shares","engagement"]].mean().reset_index()
+    st.dataframe(content_perf)
+    st.bar_chart(content_perf, x="content_type", y="engagement")
+
+# =================================================
+# TAB 3: CAMPAIGN ROI
+# =================================================
+with tab3:
+    campaign_df = filtered_df[filtered_df["campaign_name"].notna()]
+    campaign_summary = campaign_df.groupby("campaign_name")[["ad_spend","revenue_generated","roi"]].mean().reset_index()
+    st.dataframe(campaign_summary)
+    st.bar_chart(campaign_summary, x="campaign_name", y="roi")
+
+# =================================================
+# TAB 4: BEST TIME
+# =================================================
+with tab4:
+    hourly = filtered_df.groupby("post_hour")["engagement"].mean().reset_index()
+    st.line_chart(hourly, x="post_hour", y="engagement")
+    best_hour = hourly.loc[hourly["engagement"].idxmax(),"post_hour"]
+    st.success(f"🔥 Best Posting Time: **{best_hour}:00 hrs**")
+
+# =================================================
+# TAB 5: VIDEO PROMOTION STRATEGY
+# =================================================
+with tab5:
+    video_df = filtered_df[filtered_df["content_type"].str.lower().str.contains("video")]
+    if video_df.empty:
+        st.warning("No video data available.")
+    else:
+        video_platform = video_df.groupby("platform")["reach"].mean().reset_index().sort_values(by="reach", ascending=False)
+        st.bar_chart(video_platform, x="platform", y="reach")
+        st.success(f"🚀 Best platform for promotional videos: **{video_platform.iloc[0]['platform']}**")
+
+# =================================================
+# TAB 6: SMART PROMOTION DETECTION
+# =================================================
 with tab6:
-    st.subheader("🚀 High-Impact Content Detection")
-
-    # Detection thresholds
     high_engagement_cutoff = filtered_df["engagement"].quantile(0.80)
-    avg_engagement_rate = filtered_df["engagement_rate"].mean()
+    avg_er = filtered_df["engagement_rate"].mean()
 
     high_impact_df = filtered_df[
         (filtered_df["engagement"] >= high_engagement_cutoff) &
-        (filtered_df["engagement_rate"] >= avg_engagement_rate) &
+        (filtered_df["engagement_rate"] >= avg_er) &
         (filtered_df["roi"] > 0)
     ]
 
     if high_impact_df.empty:
-        st.warning("No high-impact content detected for selected filters.")
+        st.warning("No high-impact content detected.")
     else:
-        impact_summary = (
-            high_impact_df
-            .groupby(["platform", "content_type"])
-            .size()
-            .reset_index(name="high_impact_posts")
-            .sort_values(by="high_impact_posts", ascending=False)
-        )
+        summary = high_impact_df.groupby(["platform","content_type"]).size().reset_index(name="high_impact_posts")
+        st.bar_chart(summary, x="platform", y="high_impact_posts")
 
-        st.bar_chart(impact_summary, x="platform", y="high_impact_posts")
-
-        top_row = impact_summary.iloc[0]
-
+        top = summary.iloc[0]
         st.markdown(f"""
 <div class="metric-card green">
 <h3>🔥 Best Promotion Opportunity</h3>
-<h2>{top_row['content_type']} on {top_row['platform']}</h2>
+<h2>{top['content_type']} on {top['platform']}</h2>
 </div>
 """, unsafe_allow_html=True)
 
         st.markdown("""
-### 🧠 Strategy Insight
-- Detected posts with **exceptionally high engagement**
-- These posts also show **strong engagement rate and positive ROI**
-- Promoting similar content increases growth probability
-        """)
+### 🧠 Detection Insight
+- High engagement (top 20%)
+- Strong engagement rate
+- Positive ROI
 
-        st.markdown("""
 ### ✅ Action Plan
-- Increase promotional budget for detected content type
-- Replicate creative format and posting style
-- Schedule during optimal posting time
-- Track ROI closely for scaling
+- Promote similar content aggressively  
+- Replicate creative format  
+- Schedule during best posting hour  
+- Scale budget gradually  
         """)
 
 # =================================================
@@ -178,6 +193,6 @@ with tab6:
 st.markdown("""
 <hr>
 <p style='text-align:center;color:#bbbbbb;'>
-Project 8 • Social Media Engagement Analytics • Strategy & Detection Engine
+Project 8 • Social Media Engagement Analytics • Strategy & Detection Dashboard
 </p>
 """, unsafe_allow_html=True)
