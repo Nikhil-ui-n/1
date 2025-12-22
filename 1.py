@@ -31,10 +31,13 @@ df["day_of_week"] = df["date"].dt.day_name()
 # =================================================
 # SIDEBAR FILTERS
 # =================================================
-st.sidebar.header("🎛️ Filters")
+st.sidebar.header("🎛️ Dashboard Filters")
 
 platform_filter = st.sidebar.multiselect(
     "Platform", df["platform"].unique(), df["platform"].unique()
+)
+content_filter = st.sidebar.multiselect(
+    "Content Type", df["content_type"].unique(), df["content_type"].unique()
 )
 year_filter = st.sidebar.multiselect(
     "Year", df["year"].unique(), df["year"].unique()
@@ -42,6 +45,7 @@ year_filter = st.sidebar.multiselect(
 
 filtered_df = df[
     (df["platform"].isin(platform_filter)) &
+    (df["content_type"].isin(content_filter)) &
     (df["year"].isin(year_filter))
 ]
 
@@ -60,142 +64,176 @@ fraud_df = filtered_df[filtered_df["suspicious"]]
 # =================================================
 # HEADER
 # =================================================
-st.title("🚨 Fraud Detection – Social Media Analytics")
+st.title("🚀 Social Media Analytics Pro Dashboard")
 st.markdown(
-    "Analysis of **suspicious marketing activity** using abnormal engagement and ROI patterns"
+    "Engagement • Content • Campaign ROI • Best Time • **Fraud Detection**"
 )
 
 # =================================================
-# KPI SUMMARY
+# KPI METRICS
 # =================================================
-c1, c2, c3 = st.columns(3)
+c1, c2, c3, c4, c5 = st.columns(5)
 
-total_posts = len(filtered_df)
-fraud_posts = len(fraud_df)
-fraud_prob = (fraud_posts / total_posts) * 100 if total_posts else 0
-
-if fraud_prob < 5:
-    risk_level = "LOW 🟢"
-elif fraud_prob < 15:
-    risk_level = "MEDIUM 🟠"
-else:
-    risk_level = "HIGH 🔴"
-
-c1.metric("Total Posts", total_posts)
-c2.metric("Suspicious Posts", fraud_posts)
-c3.metric("Fraud Risk", risk_level)
+c1.metric("Total Engagement", int(filtered_df["engagement"].sum()))
+c2.metric("Avg Engagement Rate (%)", round(filtered_df["engagement_rate"].mean(), 2))
+c3.metric("Ad Spend (₹)", int(filtered_df["ad_spend"].sum()))
+c4.metric("Revenue (₹)", int(filtered_df["revenue_generated"].sum()))
+c5.metric("Avg ROI", round(filtered_df["roi"].mean(), 2))
 
 # =================================================
-# FRAUD HEATMAP (DAY × HOUR)
+# TABS
 # =================================================
-st.markdown("---")
-st.subheader("🔥 Fraud Heatmap (Day × Hour)")
-
-fraud_heatmap = (
-    fraud_df.groupby(["day_of_week", "post_hour"])
-    .size()
-    .reset_index(name="fraud_count")
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    ["📱 Engagement", "🖼️ Content", "💰 Campaign ROI", "⏰ Best Time", "🚨 Fraud Detection"]
 )
 
-if fraud_heatmap.empty:
-    st.success("✅ No suspicious activity detected")
-else:
-    heatmap = alt.Chart(fraud_heatmap).mark_rect().encode(
-        x=alt.X("post_hour:O", title="Posting Hour"),
-        y=alt.Y(
-            "day_of_week:O",
-            sort=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
-            title="Day of Week"
-        ),
-        color=alt.Color(
-            "fraud_count:Q",
-            scale=alt.Scale(scheme="reds"),
-            title="Fraud Intensity"
-        ),
-        tooltip=["day_of_week", "post_hour", "fraud_count"]
-    ).properties(height=350)
-
-    st.altair_chart(heatmap, use_container_width=True)
+# =================================================
+# TAB 1: ENGAGEMENT
+# =================================================
+with tab1:
+    st.subheader("Platform-wise Engagement Rate")
+    platform_eng = (
+        filtered_df.groupby("platform")["engagement_rate"]
+        .mean()
+        .reset_index()
+    )
+    st.bar_chart(platform_eng, x="platform", y="engagement_rate")
 
 # =================================================
-# PIE CHART – DAY-WISE FRAUD DISTRIBUTION
+# TAB 2: CONTENT PERFORMANCE
 # =================================================
-st.markdown("---")
-st.subheader("🥧 Day-wise Fraud Distribution")
+with tab2:
+    st.subheader("Content Performance")
+    content_perf = (
+        filtered_df.groupby("content_type")[["likes", "comments", "shares", "engagement"]]
+        .mean()
+        .reset_index()
+    )
+    st.dataframe(content_perf)
+    st.bar_chart(content_perf, x="content_type", y="engagement")
 
-fraud_by_day = (
-    fraud_df.groupby("day_of_week")
-    .size()
-    .reset_index(name="fraud_count")
-)
+# =================================================
+# TAB 3: CAMPAIGN ROI
+# =================================================
+with tab3:
+    st.subheader("Campaign ROI Analysis")
+    campaign_df = filtered_df[filtered_df["campaign_name"].notna()]
+    campaign_summary = (
+        campaign_df.groupby("campaign_name")[["ad_spend", "revenue_generated", "roi"]]
+        .mean()
+        .reset_index()
+    )
+    st.dataframe(campaign_summary)
+    st.bar_chart(campaign_summary, x="campaign_name", y="roi")
 
-if fraud_by_day.empty:
-    st.success("✅ No fraud data available for pie chart")
-else:
-    pie = alt.Chart(fraud_by_day).mark_arc(innerRadius=60).encode(
-        theta=alt.Theta("fraud_count:Q", title="Fraud Count"),
-        color=alt.Color(
-            "day_of_week:N",
-            legend=alt.Legend(title="Day of Week")
-        ),
-        tooltip=["day_of_week", "fraud_count"]
-    ).properties(
-        width=400,
-        height=400
+# =================================================
+# TAB 4: OPTIMAL POSTING TIME
+# =================================================
+with tab4:
+    st.subheader("Best Posting Time (Hour-wise)")
+    hourly = (
+        filtered_df.groupby("post_hour")["engagement"]
+        .mean()
+        .reset_index()
+    )
+    st.line_chart(hourly, x="post_hour", y="engagement")
+
+    best_hour = hourly.loc[hourly["engagement"].idxmax(), "post_hour"]
+    st.success(f"✅ Best time to post: **{best_hour}:00 hrs**")
+
+# =================================================
+# TAB 5: FRAUD DETECTION
+# =================================================
+with tab5:
+    st.subheader("🚨 Fraud Detection & Analysis")
+
+    total_posts = len(filtered_df)
+    fraud_posts = len(fraud_df)
+    fraud_probability = (fraud_posts / total_posts) * 100 if total_posts else 0
+
+    if fraud_probability < 5:
+        risk_level = "LOW 🟢"
+    elif fraud_probability < 15:
+        risk_level = "MEDIUM 🟠"
+    else:
+        risk_level = "HIGH 🔴"
+
+    a, b, c = st.columns(3)
+    a.metric("Total Posts", total_posts)
+    b.metric("Suspicious Posts", fraud_posts)
+    c.metric("Fraud Risk", risk_level)
+
+    # ---------- HEATMAP ----------
+    st.markdown("### 🔥 Fraud Heatmap (Day × Hour)")
+    fraud_heatmap = (
+        fraud_df.groupby(["day_of_week", "post_hour"])
+        .size()
+        .reset_index(name="fraud_count")
     )
 
-    st.altair_chart(pie, use_container_width=True)
+    if fraud_heatmap.empty:
+        st.success("No suspicious activity detected")
+    else:
+        heatmap = alt.Chart(fraud_heatmap).mark_rect().encode(
+            x="post_hour:O",
+            y=alt.Y(
+                "day_of_week:O",
+                sort=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+            ),
+            color=alt.Color("fraud_count:Q", scale=alt.Scale(scheme="reds")),
+            tooltip=["day_of_week", "post_hour", "fraud_count"]
+        ).properties(height=350)
 
-# =================================================
-# DAY-WISE FRAUD ANALYSIS (TEXT)
-# =================================================
-st.markdown("### 📊 Day-wise Fraud Analysis")
+        st.altair_chart(heatmap, use_container_width=True)
 
-if not fraud_by_day.empty:
-    for _, row in fraud_by_day.iterrows():
-        st.write(
-            f"• **{row['day_of_week']}** → {row['fraud_count']} suspicious post(s)"
+    # ---------- PIE CHART ----------
+    st.markdown("### 🥧 Day-wise Fraud Distribution")
+    fraud_by_day = (
+        fraud_df.groupby("day_of_week")
+        .size()
+        .reset_index(name="fraud_count")
+    )
+
+    if not fraud_by_day.empty:
+        pie = alt.Chart(fraud_by_day).mark_arc(innerRadius=60).encode(
+            theta="fraud_count:Q",
+            color="day_of_week:N",
+            tooltip=["day_of_week", "fraud_count"]
+        ).properties(height=400)
+
+        st.altair_chart(pie, use_container_width=True)
+
+        for _, row in fraud_by_day.iterrows():
+            st.write(f"• **{row['day_of_week']}** → {row['fraud_count']} suspicious post(s)")
+
+        peak_day = fraud_by_day.loc[
+            fraud_by_day["fraud_count"].idxmax(), "day_of_week"
+        ]
+        st.warning(f"⚠️ Highest suspicious activity on **{peak_day}**")
+
+    # ---------- SAFE TIME ----------
+    st.markdown("### 🛡️ Safe Time to Post")
+    safe_df = (
+        filtered_df[~filtered_df["suspicious"]]
+        .groupby(["day_of_week", "post_hour"])
+        .size()
+        .reset_index(name="safe_posts")
+    )
+
+    if not safe_df.empty:
+        safest = safe_df.loc[safe_df["safe_posts"].idxmax()]
+        st.success(
+            f"Safest time to post: **{safest['day_of_week']} at {safest['post_hour']}:00 hrs**"
         )
 
-    peak_day = fraud_by_day.loc[
-        fraud_by_day["fraud_count"].idxmax(), "day_of_week"
-    ]
-
-    st.warning(
-        f"⚠️ Highest suspicious marketing activity observed on **{peak_day}**"
-    )
-
-# =================================================
-# SAFE TIME TO POST
-# =================================================
-st.markdown("---")
-st.subheader("🛡️ Safe Time to Post")
-
-safe_df = (
-    filtered_df[~filtered_df["suspicious"]]
-    .groupby(["day_of_week", "post_hour"])
-    .size()
-    .reset_index(name="safe_posts")
-)
-
-if not safe_df.empty:
-    safest = safe_df.loc[safe_df["safe_posts"].idxmax()]
-    st.success(
-        f"✅ Safest time to post: **{safest['day_of_week']} at {safest['post_hour']}:00 hrs**"
-    )
-
-# =================================================
-# RECOMMENDATIONS
-# =================================================
-st.markdown("---")
-st.subheader("🧠 Recommendations")
-
-st.markdown("""
-• Avoid posting during high-risk days and hours  
-• Monitor high engagement but low ROI posts  
-• Focus campaigns during safe posting windows  
-• Perform manual review on suspicious campaigns  
-""")
+    # ---------- RECOMMENDATIONS ----------
+    st.markdown("### 🧠 Recommendations")
+    st.markdown("""
+    • Avoid posting during high-risk days and hours  
+    • Monitor posts with high engagement but low ROI  
+    • Focus campaigns during safe posting windows  
+    • Review suspicious campaigns manually  
+    """)
 
 # =================================================
 # FOOTER
