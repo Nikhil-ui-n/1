@@ -17,12 +17,6 @@ st.markdown("""
 <style>
 .main {
     background: linear-gradient(to right, #141E30, #243B55);
-    animation: fadeIn 1.2s ease-in;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
 }
 
 .gradient-text {
@@ -71,7 +65,7 @@ st.markdown("""
 # =================================================
 @st.cache_data
 def load_data():
-    df = pd.read_csv("social_media_engagement_enhanced (1).csv")
+    df = pd.read_csv("social_media_engagement_enhanced(1).csv")
     df["date"] = pd.to_datetime(df["date"])
     return df
 
@@ -118,7 +112,7 @@ Engagement • Content • Campaign ROI • Revenue • Best Posting Time
 """, unsafe_allow_html=True)
 
 # =================================================
-# SELECTED FILTER SUMMARY (EXPO ADDITION)
+# FILTER SUMMARY
 # =================================================
 st.info(
     f"""
@@ -172,7 +166,7 @@ c5.markdown(f"""
 st.markdown('<div class="progress-bar"></div>', unsafe_allow_html=True)
 
 # =================================================
-# TOP CONTENT INSIGHT (EXPO ADDITION)
+# TOP CONTENT INSIGHT
 # =================================================
 top_content = (
     filtered_df.groupby("content_type")["engagement_rate"]
@@ -183,10 +177,10 @@ top_content = (
 st.success(f"🔥 Best Performing Content Type: **{top_content}**")
 
 # =================================================
-# TABS
+# TABS (ONE EXTRA TAB ADDED)
 # =================================================
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["📱 Engagement", "🖼️ Content", "💰 Campaign ROI", "⏰ Best Time"]
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    ["📱 Engagement", "🖼️ Content", "💰 Campaign ROI", "⏰ Best Time", "📈 Trends"]
 )
 
 # ---------------- TAB 1 ----------------
@@ -230,8 +224,27 @@ with tab4:
         """
     )
 
+# ---------------- TAB 5 : TRENDS ----------------
+with tab5:
+    st.markdown("### 📈 Engagement Trend Over Time")
+
+    trend_df = (
+        filtered_df.groupby(["year", "month"])["engagement"]
+        .mean()
+        .reset_index()
+        .sort_values(["year", "month"])
+    )
+
+    st.line_chart(trend_df, x="month", y="engagement")
+
+    best_month = trend_df.loc[
+        trend_df["engagement"].idxmax(), "month"
+    ]
+
+    st.info(f"📊 Highest average engagement observed in **Month {best_month}**")
+
 # =================================================
-# DOWNLOAD FILTERED DATA
+# DOWNLOAD
 # =================================================
 st.download_button(
     "⬇️ Download Filtered Data",
